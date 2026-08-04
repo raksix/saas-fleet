@@ -1,0 +1,92 @@
+// Prisma schema for Kickoffly Cloud
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  accounts      Account[]
+  sessions      Session[]
+  memberships   Member[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Org {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  plan         Plan      @default(FREE)
+  stripeId     String?   @unique
+  members      Member[]
+  kickoff_templatess     KickofflyCloud[]   // domain relation
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+enum Plan { FREE STARTER PRO TEAM ENTERPRISE }
+
+model Member {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      Role     @default(MEMBER)
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([orgId, userId])
+}
+
+enum Role { OWNER ADMIN MEMBER VIEWER }
+
+model KickofflyCloud {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  status    String   @default("active")
+  payload   Json?
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([orgId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String
+  userId     String?
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  @@index([orgId, createdAt])
+}
